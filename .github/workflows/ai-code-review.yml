@@ -1,0 +1,32 @@
+name: "AI Code Review"
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize  # gdy dopchniesz nowe commity do PR
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # potrzebne, żeby mieć kontekst zmian
+
+      - name: Analyze Pull Request with OpenAI
+        uses: ProductDock/openai-pr-review-action@v1
+        with:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GPT_MODEL: "gpt-4o-mini"   # opcjonalne – możesz zmienić na inny wspierany model
+          MAX_TOKENS: "800"          # ile tokenów ma mieć odpowiedź (opcjonalne)
