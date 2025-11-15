@@ -1,0 +1,102 @@
+# -------------------------
+# Python cache & build
+# -------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# -------------------------
+# Virtual environments
+# -------------------------
+.venv/
+venv/
+env/
+ENV/
+
+# -------------------------
+# OS / Editor junk
+# -------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.orig
+
+# -------------------------
+# AWS SAM / CloudFormation
+# -------------------------
+.aws-sam/
+packaged.yaml
+template.packaged.yaml
+
+# SAM config (local developer-specific)
+samconfig.toml
+
+# Local overrides for environment variables
+sam.local.env.json
+
+# -------------------------
+# LocalStack
+# -------------------------
+localstack/
+localstack-data/
+.localstack/
+tmp/localstack/
+
+# Logs
+*.log
+
+# -------------------------
+# Environment variables
+# -------------------------
+.env
+.env.*
+!env.example
+!env.sample
+
+# -------------------------
+# Twilio / secrets
+# -------------------------
+twilio.*
+*.secret
+
+# -------------------------
+# Generated artifacts (Lambda ZIPs)
+# -------------------------
+*.zip
+
+# -------------------------
+# NodeJS (if ever using frontend / admin panel later)
+# -------------------------
+node_modules/
+npm-debug.log
+yarn-error.log
+.pnpm-store/
+
+# -------------------------
+# Coverage / test output
+# -------------------------
+.coverage
+htmlcov/
+coverage.xml
+
+# -------------------------
+# Misc
+# -------------------------
+*.bak
+*.tmp
+*.retry
+
+# -------------------------
+# Local
+# -------------------------
+.local/
+local/

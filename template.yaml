@@ -1,0 +1,278 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Gym Integrator – Etap 1 (prod-ready)
+
+Globals:
+  Function:
+    Runtime: python3.11
+    Timeout: 25
+    MemorySize: 512
+    Tracing: Active
+    Environment:
+      Variables:
+        PYTHONPATH: /var/task/src
+        DEV_MODE: true
+        DDB_TABLE_TENANTS: Tenants
+        DDB_TABLE_CONVERSATIONS: Conversations
+        DDB_TABLE_MESSAGES: Messages
+        DDB_TABLE_TEMPLATES: Templates
+        DDB_TABLE_CAMPAIGNS: Campaigns
+        DDB_TABLE_CONSENTS: Consents
+        DDB_TABLE_INTENTS_STATS: IntentsStats
+        DDB_TABLE_MEMBERS_INDEX: MembersIndex
+        KB_BUCKET: !Ref KnowledgeBaseBucket
+
+Resources:
+  InboundEventsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: inbound-events
+      VisibilityTimeout: 60
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt InboundDLQ.Arn
+        maxReceiveCount: 5
+  InboundDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: inbound-events-dlq
+
+  OutboundQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: outbound-messages
+      VisibilityTimeout: 60
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt OutboundDLQ.Arn
+        maxReceiveCount: 5
+  OutboundDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: outbound-messages-dlq
+
+  Tenants:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Tenants
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: tenant_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: tenant_id
+          KeyType: HASH
+
+  Conversations:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Conversations
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  Messages:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Messages
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+
+  Templates:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Templates
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  Campaigns:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Campaigns
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  Consents:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Consents
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  IntentsStats:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: IntentsStats
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  MembersIndex:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: MembersIndex
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  KnowledgeBaseBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-kb-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+
+  InboundWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: inbound-webhook
+      CodeUri: .
+      Handler: src/lambdas/inbound_webhook/handler.lambda_handler
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt InboundEventsQueue.QueueName
+      Environment:
+        Variables:
+          InboundEventsQueueUrl: !Ref InboundEventsQueue
+          LOCALSTACK_ENDPOINT: ""         
+          TwilioAccountSid: ""
+          TwilioAuthToken: ""
+          TWILIO_FROM: ""
+          TWILIO_MESSAGING_SID: ""
+          TWILIO_WHATSAPP_NUMBER: ""
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /webhooks/twilio
+            Method: post
+
+  MessageRouterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: message-router
+      CodeUri: .
+      Handler: src/lambdas/message_router/handler.lambda_handler
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt InboundEventsQueue.QueueName
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt OutboundQueue.QueueName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Messages
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Conversations
+        - DynamoDBReadPolicy:
+            TableName: !Ref Templates
+        - DynamoDBReadPolicy:
+            TableName: !Ref Tenants
+        - S3ReadPolicy:
+            BucketName: !Ref KnowledgeBaseBucket
+      Environment:
+        Variables:
+          OutboundQueueUrl: !Ref OutboundQueue      
+          TwilioAccountSid: ""
+          TwilioAuthToken: ""
+          TWILIO_FROM: ""
+          TWILIO_MESSAGING_SID: ""
+          TWILIO_WHATSAPP_NUMBER: ""
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt InboundEventsQueue.Arn
+            BatchSize: 5
+
+  OutboundSenderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: outbound-sender
+      CodeUri: .
+      Handler: src/lambdas/outbound_sender/handler.lambda_handler
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt OutboundQueue.QueueName      
+      Environment:
+        Variables:    
+          TwilioAccountSid: ""
+          TwilioAuthToken: ""
+          TWILIO_FROM: ""
+          TWILIO_MESSAGING_SID: ""
+          TWILIO_WHATSAPP_NUMBER: ""
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt OutboundQueue.Arn
+            BatchSize: 5
+
+  CampaignRunnerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: campaign-runner
+      CodeUri: .
+      Handler: src/lambdas/campaign_runner/handler.lambda_handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref Campaigns
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt OutboundQueue.QueueName
+      Environment:
+        Variables:
+          OutboundQueueUrl: !Ref OutboundQueue
+      Events:
+        DailySchedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 day)
+
+  HousekeepingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: housekeeping
+      CodeUri: .
+      Handler: src/lambdas/housekeeping/handler.lambda_handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Messages
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Conversations
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/webhooks/twilio'
