@@ -65,14 +65,15 @@ Globals:
         JIRA_TOKEN:       !Ref JiraToken
         JIRA_PROJECT_KEY: !Ref JiraProjectKey
         
-        DDB_TABLE_TENANTS: Tenants
-        DDB_TABLE_CONVERSATIONS: Conversations
-        DDB_TABLE_MESSAGES: Messages
-        DDB_TABLE_TEMPLATES: Templates
-        DDB_TABLE_CAMPAIGNS: Campaigns
-        DDB_TABLE_CONSENTS: Consents
-        DDB_TABLE_INTENTS_STATS: IntentsStats
-        DDB_TABLE_MEMBERS_INDEX: MembersIndex
+        DDB_TABLE_TENANTS: !Sub 'Tenants-${AWS::StackName}'
+        DDB_TABLE_CONVERSATIONS: !Sub 'Conversations-${AWS::StackName}'
+        DDB_TABLE_MESSAGES:      !Sub 'Messages-${AWS::StackName}'
+        DDB_TABLE_TEMPLATES:      !Sub 'Templates-${AWS::StackName}'
+        DDB_TABLE_CAMPAIGNS:     !Sub 'Campaigns-${AWS::StackName}'
+        DDB_TABLE_CONSENTS:      !Sub 'Consents-${AWS::StackName}'
+        DDB_TABLE_INTENTS_STATS: !Sub 'IntentsStats-${AWS::StackName}'
+        DDB_TABLE_MEMBERS_INDEX: !Sub 'MembersIndex-${AWS::StackName}'
+        
         KB_BUCKET: !Ref KnowledgeBaseBucket
     
 
@@ -330,7 +331,22 @@ Resources:
         - DynamoDBCrudPolicy:  
             TableName: !Ref IntentsStats
 
+  PgReservationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'pg-reservations-${AWS::StackName}'
+      CodeUri: .
+      Handler: src/lambdas/pg_reservations/handler.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /api/pg/test
+            Method: post
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
     Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/webhooks/twilio'
+  PgTestUrl:
+    Description: API Gateway endpoint URL for PerfectGym manual test
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/api/pg/test'

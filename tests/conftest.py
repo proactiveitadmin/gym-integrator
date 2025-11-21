@@ -115,6 +115,15 @@ def env_setup(monkeypatch):
     monkeypatch.setenv("MOTO_ALLOW_NONEXISTENT_REGION", "true")
     monkeypatch.delenv("AWS_PROFILE", raising=False)
 
+    for var in [
+        "AWS_ENDPOINT_URL",
+        "LOCALSTACK_ENDPOINT",
+        "SQS_ENDPOINT",
+        "S3_ENDPOINT",
+        "DYNAMODB_ENDPOINT",
+    ]:
+        monkeypatch.delenv(var, raising=False)
+        
     # Zadbajmy, żeby w testach NIGDY nie poszło do prawdziwego OpenAI/Twilio/PG/Jira
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("TWILIO_ACCOUNT_SID", raising=False)
