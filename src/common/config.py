@@ -43,6 +43,7 @@ class Settings:
     jira_url: str = os.getenv("JIRA_URL", "")
     jira_token: str = os.getenv("JIRA_TOKEN", "")
     jira_project_key: str = os.getenv("JIRA_PROJECT_KEY", "GI")
+    jira_default_issue_type: str = "Task"
 
     # KB (FAQ z S3)
     kb_bucket: str = os.getenv("KB_BUCKET", "")
@@ -50,6 +51,11 @@ class Settings:
     # Kolejki (opcjonalnie, żeby mieć 1 źródło prawdy)
     inbound_queue_url: str = os.getenv("InboundEventsQueueUrl", "")
     outbound_queue_url: str = os.getenv("OutboundQueueUrl", "")
+    
+    # np. w common/config.py
+    def get_default_language(self) -> str:
+        return self.tenant_default_lang or "en"
+
 
 
 # Globalna instancja ustawień używana w całej aplikacji.

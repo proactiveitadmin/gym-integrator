@@ -47,9 +47,14 @@ if __name__ == "__main__":
         [{"AttributeName":"pk","AttributeType":"S"}],
         [{"AttributeName":"pk","KeyType":"HASH"}]
     )
-        ensure_table("IntentsStats",
+    ensure_table("IntentsStats",
         [{"AttributeName":"pk","AttributeType":"S"},{"AttributeName":"sk","AttributeType":"S"}],
         [{"AttributeName":"pk","KeyType":"HASH"},{"AttributeName":"sk","KeyType":"RANGE"}]
+    )
+    ensure_table(
+        "Consents",
+        [{"AttributeName": "pk", "AttributeType": "S"}],
+        [{"AttributeName": "pk", "KeyType": "HASH"}],
     )
 
 
